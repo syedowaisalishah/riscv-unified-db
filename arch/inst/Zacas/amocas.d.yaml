@@ -28,3 +28,43 @@ access:
   vu: always
 data_independent_timing: false
 operation(): |
+  # Ensure the Zacas extension is implemented and enabled
+  if (!implemented?(ExtensionName::Zacas)) {
+    raise (ExceptionCode::IllegalInstruction, mode(), $encoding);
+  }
+
+  # Calculate the effective address from rs1 directly without using 'let'
+  effective_address = X[rs1];
+
+  # Load the 64-bit value from the effective address directly
+  loaded_value = mem_read64(effective_address, aq);
+
+  # Initialize and assign values directly within the condition blocks
+  compare_value_low = 0;
+  compare_value_high = 0;
+  swap_value_low = 0;
+  swap_value_high = 0;
+
+  if (rd != 0) {
+    compare_value_low = X[rd];
+    compare_value_high = X[rd + 1];
+  }
+
+  if (rs2 != 0) {
+    swap_value_low = X[rs2];
+    swap_value_high = X[rs2 + 1];
+  }
+
+  # Combine high and low parts for full 64-bit values directly in the expression
+  compare_value = (compare_value_high << 32) | compare_value_low;
+  swap_value = (swap_value_high << 32) | swap_value_low;
+
+  # Perform the comparison and conditional swap
+  if (loaded_value == compare_value) {
+    mem_write64(effective_address, swap_value, rl);
+  }
+
+  # Update the register pair with the loaded value if rd is not x0
+  if (rd != 0) {
+    X[rd] = loaded_value & 0xFFFFFFFF;  # Low part of the 64-bit value
+    X[rd + 1] = (loaded_value >> 32) & 0xFFFFFFFF;  # High part of the 64-bit value

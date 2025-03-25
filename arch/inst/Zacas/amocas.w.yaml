@@ -1,3 +1,4 @@
+---
 # yaml-language-server: $schema=../../../schemas/inst_schema.json
 
 $schema: "inst_schema.json#"
@@ -28,3 +29,25 @@ access:
   vu: always
 data_independent_timing: false
 operation(): |
+  // AMOCAS.W - Atomic Compare-and-Swap Word (32-bit operation)
+  try {
+    let vaddr = X(rs1);
+    let paddr = translateAddr(vaddr, ReadWrite(Data, Data));
+    let compare_val = (rd == x0) ? 0 : X(rd)[31:0];
+    let swap_val = (rs2 == x0) ? 0 : X(rs2)[31:0];
+
+    let result = builtin_atomic_cas(
+      width: 32,
+      paddr: paddr,
+      compare: compare_val,
+      swap: swap_val,
+      aq: aq,
+      rl: rl
+    );
+
+    if (rd != x0) {
+      X(rd) = (XLEN == 32) ? result : SignExtend(result, 32);
+    }
+  } catch (Exception e) {
+    raise e;
+  }

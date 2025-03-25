@@ -1,3 +1,4 @@
+---
 # yaml-language-server: $schema=../../../schemas/inst_schema.json
 
 $schema: "inst_schema.json#"
@@ -29,3 +30,26 @@ access:
   vu: always
 data_independent_timing: false
 operation(): |
+  // AMOCAS.Q - Atomic Compare-and-Swap Quadword (128-bit operation, RV64 only)
+  try {
+    let vaddr = X(rs1);
+    let paddr = translateAddr(vaddr, ReadWrite(Data, Data));
+    let compare_high = ((rd == x0) || (rd == x31)) ? 0 : X(rd+1);
+    let compare_low = (rd == x0) ? 0 : X(rd);
+    let swap_high = ((rs2 == x0) || (rs2 == x31)) ? 0 : X(rs2+1);
+    let swap_low = (rs2 == x0) ? 0 : X(rs2);
+    let result = builtin_atomic_cas(
+      width: 128,
+      paddr: paddr,
+      compare: {compare_high, compare_low},
+      swap: {swap_high, swap_low},
+      aq: aq,
+      rl: rl
+    );
+    if (rd != x0 && rd != x31) {
+      X(rd) = result[63:0];
+      X(rd+1) = result[127:64];
+    }
+  } catch (Exception e) {
+    raise e;
+  }
